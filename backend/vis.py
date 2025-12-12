@@ -47,10 +47,10 @@ class CargoVisualizer:
             )
             ax.add_patch(safe_zone)
         
-        # Draw cylinders
-        for circle in self.solution.cylinders:
-            if circle.placed:
-                radius = circle.diameter / 2.0
+        # Draw cargo items
+        for cargo in self.solution.cargo_items:
+            if cargo.placed:
+                radius = cargo.diameter / 2.0
                 
                 # Color based on solution quality
                 if self.solution.fitness == 0:
@@ -60,8 +60,8 @@ class CargoVisualizer:
                     edge_color = '#99D9DD'  # Blue for searching
                     fill_color = '#99D9DD'
                 
-                circle_patch = PltCircle(
-                    (circle.x, circle.y), 
+                cargo_patch = PltCircle(
+                    (cargo.x, cargo.y), 
                     radius,
                     fill=True,
                     facecolor=fill_color,
@@ -69,18 +69,18 @@ class CargoVisualizer:
                     edgecolor=edge_color,
                     linewidth=2
                 )
-                ax.add_patch(circle_patch)
+                ax.add_patch(cargo_patch)
                 
                 # Center point
-                ax.plot(circle.x, circle.y, 'o', color=edge_color, markersize=6)
+                ax.plot(cargo.x, cargo.y, 'o', color=edge_color, markersize=6)
                 
                 # Label with ID
-                ax.text(circle.x, circle.y, f'{circle.id}', 
+                ax.text(cargo.x, cargo.y, f'{cargo.id}', 
                        ha='center', va='center', color='#F7F8F9', 
                        fontsize=11, weight='bold')
                 
                 # Weight below
-                ax.text(circle.x, circle.y + radius + 0.3, f'{int(circle.weight)}kg', 
+                ax.text(cargo.x, cargo.y + radius + 0.3, f'{int(cargo.weight)}kg', 
                        ha='center', va='top', color='#F7F8F9', 
                        fontsize=8, style='italic')
         

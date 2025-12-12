@@ -16,17 +16,6 @@ GRID_STEP = 0.1  # Position grid resolution (units)
 def place_cargo(order: List[int], 
                 cargo_items: List[Cargo], 
                 container: Container) -> Solution:
-    """
-    Place cargo items using bottom-left heuristic.
-    
-    Args:
-        order: List of cargo IDs in placement order [0,1,2,...]
-        cargo_items: List of Cargo objects (unplaced)
-        container: Container with dimensions and weight limit
-        
-    Returns:
-        Solution object with placed cargo and fitness
-    """
     # Make copies so we don't modify originals
     cargo_copy = [deepcopy(c) for c in cargo_items]
     placed_cargo = []
@@ -84,18 +73,6 @@ def place_cargo(order: List[int],
 def is_valid_position(x: float, y: float, radius: float,
                      placed_cargo: List[Cargo],
                      container: Container) -> bool:
-    """
-    Check if a cargo item can be placed at position (x, y).
-    
-    Args:
-        x, y: Center coordinates of cargo item
-        radius: Radius of cargo item to place
-        placed_cargo: List of already-placed cargo items
-        container: Container dimensions
-        
-    Returns:
-        True if position is valid (no overlaps, within bounds)
-    """
     # Check 1: Within container bounds
     if x - radius < 0 or x + radius > container.width:
         return False
