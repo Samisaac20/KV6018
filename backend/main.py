@@ -22,7 +22,7 @@ from matplotlib.patches import Rectangle as PltRectangle
 # ============================================================================
 
 @dataclass
-class Cylinder:
+class Cargo:
     id: int
     diameter: float
     weight: float
@@ -39,14 +39,14 @@ class Container:
 @dataclass
 class Solution:
     order: List[int]
-    cylinders: List[Cylinder]
+    cargo_items: List[Cargo]
     complete: bool
     fitness: float
     violations: Dict[str, float]
     container: Container
     
     def get_center_of_mass(self) -> Tuple[float, float]:
-        placed = [c for c in self.cylinders if c.placed]
+        placed = [c for c in self.cargo_items if c.placed]
         if not placed:
             return (0, 0)
         

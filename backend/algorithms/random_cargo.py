@@ -2,7 +2,7 @@ import random
 # from load_json import load_json
 # from placement_algorithm import Placement_Algorithm
 
-class Random_Search:
+class random_search:
     def __init__(self, container, cargo_items, max_iterations=1000):
         self.container = container
         self.cargo_items = cargo_items
