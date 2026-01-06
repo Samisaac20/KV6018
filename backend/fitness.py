@@ -64,3 +64,13 @@ def calculate_fitness(solution: Solution) -> Tuple[float, Dict[str, float]]:
     
     return fitness, violations
 
+def update_solution_fitness(solution: Solution) -> None:
+    """
+    Calculate and update the fitness and violations in a Solution object.
+    
+    Args:
+        solution: Solution object to update (modified in place)
+    """
+    fitness, violations = calculate_fitness(solution)
+    solution.fitness = fitness
+    solution.violations = violations
