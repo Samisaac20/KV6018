@@ -24,3 +24,30 @@ def load_json_instance(instance_name: str) -> Tuple[List[Cargo], Container, str]
             if instance["name"] == instance_name:
                 instance_data = instance
                 break
+
+    if instance_data is None:
+        available = list_all_instances()
+        raise ValueError(
+            f"Instance '{instance_name}' not found.\n"
+            f"Available instances: {available}"
+        )
+
+    # Parse container
+    container_data = instance_data["container"]
+    container = Container(
+        width=container_data["width"],
+        depth=container_data["depth"],
+        max_weight=container_data["max_weight"]
+    )
+
+    # Parse cargo items (re-index IDs from 0)
+    cargo_items = []
+    for idx, cylinder_data in enumerate(instance_data["cylinders"]):
+        cargo = Cargo(
+            id=idx,  # Re-index from 0
+            diameter=cylinder_data["diameter"],
+            weight=cylinder_data["weight"]
+        )
+        cargo_items.append(cargo)
+    
+    return cargo_items, container, instance_name
