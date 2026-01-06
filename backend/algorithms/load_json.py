@@ -1,6 +1,7 @@
-# ============================================================================
-# JSON INSTANCE LOADER
-# ============================================================================
+import json
+from pathlib import Path
+from typing import List, Tuple
+from main import Cargo, Container
 
-#def load_json_instance(file_path):
-#    with open(file_path, 'r') as f:
+def load_json_instance():
+    pass
