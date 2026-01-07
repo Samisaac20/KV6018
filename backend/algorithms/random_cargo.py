@@ -1,32 +1,79 @@
+"""
+Random search algorithm for cargo container loading.
+Tries random orderings and keeps the best solution found.
+"""
+
 import random
-# from load_json import load_json
-# from placement_algorithm import Placement_Algorithm
+from typing import List
+from copy import deepcopy
 
-class random_search:
-    def __init__(self, container, cargo_items, max_iterations=1000):
-        self.container = container
-        self.cargo_items = cargo_items
-        self.max_iterations = max_iterations
-        self.best_arrangement = None
-        self.best_filled_volume = 0
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent.parent))
 
-    def run(self):
+from main import Cargo, Container, Solution
+from cargo_placement import place_cargo
+from fitness import calculate_fitness
+
+
+def random_search(cargo_items: List[Cargo], 
+                 container: Container, 
+                 max_iterations: int = 1000,
+                 verbose: bool = False) -> Solution:
+    """
+    Random search algorithm - tries random orderings.
+    
+    Args:
+        cargo_items: List of Cargo objects to place
+        container: Container object with dimensions
+        max_iterations: Number of random orders to try
+        verbose: If True, print progress updates
         
-        for _ in range(self.max_iterations):
-            random.shuffle(self.cargo_items)
-            current_arrangement = []
-            current_filled_volume = 0
-
-            for item in self.cargo_items:
-                if self.container.can_place(item):
-                    self.container.place(item)
-                    current_arrangement.append(item)
-                    current_filled_volume += item.volume
-
-            if current_filled_volume > self.best_filled_volume:
-                self.best_filled_volume = current_filled_volume
-                self.best_arrangement = current_arrangement.copy()
-
-            self.container.reset()
-
-        return self.best_arrangement, self.best_filled_volume
+    Returns:
+        Best solution found
+    """
+    best_solution = None
+    best_fitness = float('inf')
+    
+    # Generate list of cargo IDs
+    num_cargo = len(cargo_items)
+    
+    for iteration in range(max_iterations):
+        # Generate random order (permutation)
+        order = list(range(num_cargo))
+        random.shuffle(order)
+        
+        # Place cargo using this order
+        solution = place_cargo(order, cargo_items, container)
+        
+        # Calculate fitness
+        fitness, violations = calculate_fitness(solution)
+        solution.fitness = fitness
+        solution.violations = violations
+        
+        # Keep track of best solution
+        if fitness < best_fitness:
+            best_solution = solution
+            best_fitness = fitness
+            
+            if verbose:
+                print(f"Iteration {iteration+1}: New best fitness = {fitness:.2f}")
+            
+            # If perfect solution found, stop early
+            if fitness == 0.0:
+                if verbose:
+                    print(f"Perfect solution found at iteration {iteration+1}!")
+                break
+        
+        # Progress update every 100 iterations
+        if verbose and (iteration + 1) % 100 == 0:
+            print(f"Iteration {iteration+1}/{max_iterations}, Best fitness so far: {best_fitness:.2f}")
+    
+    if verbose:
+        print(f"\nRandom Search Complete:")
+        print(f"  Total iterations: {iteration+1}")
+        print(f"  Best fitness: {best_fitness:.2f}")
+        print(f"  Solution complete: {best_solution.complete}")
+        print(f"  Violations: {best_solution.violations}")
+    
+    return best_solution
