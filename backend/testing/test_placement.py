@@ -1,6 +1,10 @@
 # test_placement.py
 """Quick test for placement algorithm"""
 
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent.parent))
+
 from main import Cargo, Container
 from cargo_placement import place_cargo
 

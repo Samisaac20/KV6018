@@ -1,5 +1,8 @@
 # test_fitness.py
 """Test fitness calculation"""
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent.parent))
 
 from main import Cargo, Container, Solution
 from fitness import calculate_fitness, update_solution_fitness
