@@ -9,9 +9,7 @@ import sys
 from typing import List, Tuple, Dict
 from dataclasses import dataclass
 
-# ============================================================================
 # PROBLEM DEFINITION (Data Structures)
-# ============================================================================
 
 @dataclass
 class Cargo:
@@ -54,9 +52,7 @@ class Solution:
         
         return (weighted_x / total_weight, weighted_y / total_weight)
 
-# ============================================================================
 # MENU SYSTEM
-# ============================================================================
 
 def print_header():
     """Print program header"""
@@ -291,3 +287,15 @@ def main_menu():
         if continue_choice != 'y':
             print("\nExiting program. Goodbye!")
             break
+
+# MAIN ENTRY POINT
+
+if __name__ == "__main__":
+    try:
+        main_menu()
+    except KeyboardInterrupt:
+        print("\n\nProgram interrupted. Goodbye!")
+    except Exception as e:
+        print(f"\nFatal error: {e}")
+        import traceback
+        traceback.print_exc()
