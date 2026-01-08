@@ -60,7 +60,7 @@ class Solution:
 # CARGO PLACEMENT
 
 # Configuration
-GRID_STEP = 0.5  # Position grid resolution (units)
+GRID_STEP = 0.1  # Position grid resolution (units)
 
 
 def place_cargo(
@@ -138,16 +138,15 @@ def is_valid_position(
 # FITNESS EVALUATION
 
 # Penalty weights
-PENALTY_UNPLACED = 1000.0  # Per unplaced cargo item
-PENALTY_WEIGHT_KG = 10.0  # Per kg over weight limit
-PENALTY_COM_DISTANCE = 100.0  # Per unit distance outside safe zone
+PENALTY_UNPLACED = 1000.0
+PENALTY_WEIGHT_KG = 10.0
+PENALTY_COM_DISTANCE = 100.0
 
 
-def calculate_fitness(solution) -> float:
+def calculate_fitness(solution: Solution) -> float:
     total_penalty = 0.0
     violations = {}
 
-    # Penalty 1: Unplaced cargo items
     unplaced_count = sum(1 for c in solution.cargo_items if not c.placed)
     if unplaced_count > 0:
         penalty = unplaced_count * PENALTY_UNPLACED
@@ -155,13 +154,11 @@ def calculate_fitness(solution) -> float:
         violations["unplaced_items"] = unplaced_count
         violations["unplaced_penalty"] = penalty
 
-    # If solution is incomplete, skip other checks
     if not solution.complete:
         solution.fitness = total_penalty
         solution.violations = violations
         return total_penalty
 
-    # Penalty 2: Weight limit violation
     total_weight = sum(c.weight for c in solution.cargo_items if c.placed)
     if total_weight > solution.container.max_weight:
         excess_weight = total_weight - solution.container.max_weight
@@ -170,43 +167,24 @@ def calculate_fitness(solution) -> float:
         violations["excess_weight_kg"] = excess_weight
         violations["weight_penalty"] = penalty
 
-    # Penalty 3: Center of mass outside safe zone
     com_x, com_y = solution.get_center_of_mass()
 
-    # Safe zone is central 60% of container
-    safe_x_min = solution.container.width * 0.2
-    safe_x_max = solution.container.width * 0.8
-    safe_y_min = solution.container.depth * 0.2
-    safe_y_max = solution.container.depth * 0.8
+    # Calculate distance from IDEAL position (center of container)
+    ideal_x = solution.container.width / 2
+    ideal_y = solution.container.depth / 2
 
-    # Calculate distance outside safe zone
-    com_violation = 0.0
+    com_distance = math.sqrt((com_x - ideal_x) ** 2 + (com_y - ideal_y) ** 2)
 
-    if com_x < safe_x_min:
-        com_violation += safe_x_min - com_x
-    elif com_x > safe_x_max:
-        com_violation += com_x - safe_x_max
+    # Penalize distance from center
+    penalty = com_distance * PENALTY_COM_DISTANCE
+    total_penalty += penalty
+    violations["com_distance_from_center"] = com_distance
+    violations["com_penalty"] = penalty
+    violations["com_position"] = (com_x, com_y)
+    violations["ideal_position"] = (ideal_x, ideal_y)
 
-    if com_y < safe_y_min:
-        com_violation += safe_y_min - com_y
-    elif com_y > safe_y_max:
-        com_violation += com_y - safe_y_max
-
-    if com_violation > 0:
-        penalty = com_violation * PENALTY_COM_DISTANCE
-        total_penalty += penalty
-        violations["com_distance_outside"] = com_violation
-        violations["com_penalty"] = penalty
-        violations["com_position"] = (com_x, com_y)
-        violations["safe_zone"] = {
-            "x_range": (safe_x_min, safe_x_max),
-            "y_range": (safe_y_min, safe_y_max),
-        }
-
-    # Store results in solution object
     solution.fitness = total_penalty
     solution.violations = violations
-
     return total_penalty
 
 
@@ -256,10 +234,11 @@ class GeneticAlgorithm:
 
     def initialize_population(self):
         for _ in range(self.population_size):
-            genome = random.sample(range(len(self.cargo_items)), len(self.cargo_items))
-            individual = self._evaluate(genome)
-            self.population.append(individual)
-            self._update_best(individual[1], individual[2], 0)
+            genome = list(range(self.num_items))
+            random.shuffle(genome)
+            solution = place_cargo(genome, self.cargo_items, self.container)
+            calculate_fitness(solution)
+            self.population.append((genome, solution, solution.fitness))
 
     def tournament_selection(self) -> List[int]:
         tournament = random.sample(self.population, self.tournament_size)
