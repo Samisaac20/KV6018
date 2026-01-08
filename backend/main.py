@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Tuple
 
 import matplotlib.pyplot as plt
+from matplotlib.backend_tools import ToolCursorPosition
 from matplotlib.patches import Circle as PltCircle
 from matplotlib.patches import Rectangle as PltRectangle
 
@@ -221,128 +222,140 @@ def calculate_fitness(solution) -> float:
 class GeneticAlgorithm:
     def __init__(
         self,
-        cargo_items: List,
-        container,
-        population_size: int = 50,
-        generations: int = 100,
-        mutation_rate: float = 0.2,
+        cargo_items: List[Cargo],
+        container: Container,
+        population_size: int = 100,
+        generations: int = 500,
+        mutation_rate: float = 0.15,
+        crossover_rate: float = 0.8,
+        tournament_size: int = 3,
+        elite_size: int = 2,
     ):
         self.cargo_items = cargo_items
         self.container = container
-        self.num_items = len(cargo_items)
-
         self.population_size = population_size
         self.generations = generations
         self.mutation_rate = mutation_rate
-
+        self.crossover_rate = crossover_rate
+        self.tournament_size = tournament_size
+        self.elite_size = elite_size
         self.population = []
         self.best_solution = None
         self.best_fitness = float("inf")
+        self.best_generation = 0
+        self.fitness_history = []
 
-    def init_population(self):
-        from cargo_placement import place_cargo
-        from fitness import calculate_fitness
+    def _evaluate(self, genome: List[int]) -> tuple:
+        """Evaluate a genome and return (genome, solution, fitness)."""
+        solution = place_cargo(genome, self.cargo_items, self.container)
+        calculate_fitness(solution)
+        return (genome, solution, solution.fitness)
 
+    def _update_best(self, solution, fitness, generation: int):
+        """Update best solution if fitness improved."""
+        if fitness < self.best_fitness:
+            self.best_fitness = fitness
+            self.best_solution = solution
+            self.best_generation = generation
+            return True
+        return False
+
+    def initialize_population(self):
         for _ in range(self.population_size):
-            gnome = list(range(slef.num_items))
-            random.shuffle(gnome)
+            genome = random.sample(range(len(self.cargo_items)), len(self.cargo_items))
+            individual = self._evaluate(genome)
+            self.population.append(individual)
+            self._update_best(individual[1], individual[2], 0)
 
-            solution = place_cargo(gnome, self.cargo_items, self.container)
-            fitness = calculate_fitness(solution)
+    def tournament_selection(self) -> List[int]:
+        tournament = random.sample(self.population, self.tournament_size)
+        return min(tournament, key=lambda ind: ind[2])[0].copy()
 
-            self.population.append((gnome, solution, fitness))
-
-            if fitness < self.best.fitness:
-                self.best_fitness = fitness
-                self.best_solution = solution
-
-    def select_parent(self) -> List[int]:
-        individual = random.choice(self.population)
-        return individual[0].copy()
-
-    def crossover(self, parent1: List[int], parent2: List[int]) -> List[int]:
+    def order_crossover(self, parent1: List[int], parent2: List[int]) -> List[int]:
         size = len(parent1)
-        point = random.randint(1, size - 1)
+        p1, p2 = sorted(random.sample(range(size), 2))
 
-        child = parent1[:point].copy()
+        child = [-1] * size
+        child[p1 : p2 + 1] = parent1[p1 : p2 + 1]
 
-        for gene in parent2:
-            if gene not in child:
-                child.append(gene)
+        segment = set(child[p1 : p2 + 1])
+        remaining = iter(x for x in parent2 if x not in segment)
+        return [next(remaining) if x == -1 else x for x in child]
 
-        return child
+    def swap_mutation(self, genome: List[int]) -> List[int]:
+        if random.random() >= self.mutation_rate:
+            return genome
+        mutated = genome.copy()
+        p1, p2 = random.sample(range(len(mutated)), 2)
+        mutated[p1], mutated[p2] = mutated[p2], mutated[p1]
+        return mutated
 
-    def mutate(self, genome: List[int]) -> List[int]:
-        """Swap two random positions."""
-        if random.random() < self.mutation_rate:
-            mutated = genome.copy()
-            pos1 = random.randint(0, len(mutated) - 1)
-            pos2 = random.randint(0, len(mutated) - 1)
-            mutated[pos1], mutated[pos2] = mutated[pos2], mutated[pos1]
-            return mutated
-        return genome
+    def evolve_generation(self) -> List:
+        # Keep elites
+        sorted_pop = sorted(self.population, key=lambda ind: ind[2])
+        new_population = sorted_pop[: self.elite_size]
+
+        # Generate offspring
+        while len(new_population) < self.population_size:
+            parent1, parent2 = self.tournament_selection(), self.tournament_selection()
+            child = (
+                self.order_crossover(parent1, parent2)
+                if random.random() < self.crossover_rate
+                else parent1.copy()
+            )
+            child = self.swap_mutation(child)
+            new_population.append(self._evaluate(child))
+
+        return new_population
 
     def run(self, verbose: bool = False):
-        """Run the genetic algorithm."""
-        from cargo_placement import place_cargo
-        from fitness import calculate_fitness
-
         if verbose:
-            print("\nRunning basic GA...")
+            print(f"\n{'=' * 70}\nGENETIC ALGORITHM\n{'=' * 70}")
             print(
-                f"Population: {self.population_size}, Generations: {self.generations}"
+                f"\nPopulation: {self.population_size}, Generations: {self.generations}"
             )
+            print(f"Mutation: {self.mutation_rate}, Crossover: {self.crossover_rate}")
 
-        # Initialize
         self.initialize_population()
+        self.fitness_history.append(self.best_fitness)
 
         if verbose:
-            print(f"Initial best fitness: {self.best_fitness:.2f}")
+            print(f"\nInitial best fitness: {self.best_fitness:.2f}\n")
 
-        # Evolution loop
-        for generation in range(self.generations):
-            new_population = []
+        for gen in range(1, self.generations + 1):
+            self.population = self.evolve_generation()
 
-            # Create new generation
-            for _ in range(self.population_size):
-                # Select parents
-                parent1 = self.select_parent()
-                parent2 = self.select_parent()
+            for genome, solution, fitness in self.population:
+                if self._update_best(solution, fitness, gen) and verbose:
+                    print(f"Generation {gen}: New best = {fitness:.2f}")
 
-                # Create child
-                child = self.crossover(parent1, parent2)
-                child = self.mutate(child)
+            self.fitness_history.append(self.best_fitness)
 
-                # Evaluate
-                solution = place_cargo(child, self.cargo_items, self.container)
-                fitness = calculate_fitness(solution)
-
-                new_population.append((child, solution, fitness))
-
-                # Track best
-                if fitness < self.best_fitness:
-                    self.best_fitness = fitness
-                    self.best_solution = solution
-                    if verbose:
-                        print(f"Generation {generation}: New best = {fitness:.2f}")
-
-            self.population = new_population
-
-            # Early stopping
             if self.best_fitness == 0.0:
                 if verbose:
-                    print(f"\nPerfect solution found at generation {generation}!")
+                    print(
+                        f"\n{'=' * 70}\n✓ PERFECT SOLUTION FOUND!\nGeneration: {gen}/{self.generations}\n{'=' * 70}"
+                    )
                 break
 
+            if verbose and gen % 50 == 0:
+                avg = sum(ind[2] for ind in self.population) / len(self.population)
+                print(f"Generation {gen}: Best={self.best_fitness:.2f}, Avg={avg:.2f}")
+
         if verbose:
-            print(f"\nFinal best fitness: {self.best_fitness:.2f}")
+            print(f"\n{'=' * 70}\nEVOLUTION COMPLETE\n{'=' * 70}")
+            print(
+                f"Best fitness: {self.best_fitness:.2f}\nFound in generation: {self.best_generation}"
+            )
 
         return self.best_solution
 
     def get_statistics(self) -> dict:
-        """Get basic statistics."""
         return {
             "best_fitness": self.best_fitness,
+            "best_generation": self.best_generation,
+            "generations_run": len(self.fitness_history) - 1,
+            "fitness_history": self.fitness_history,
             "population_size": self.population_size,
         }
 
@@ -571,25 +584,21 @@ def list_instances() -> List[str]:
 
 
 def main_menu():
-    """Main program loop"""
     print("\n" + "=" * 70)
     print("CARGO CONTAINER LOADING - GENETIC ALGORITHM")
-    print("KV6018 Evolutionary Computing Assessment")
+    print("KV6018 Evolutionary Computing")
     print("=" * 70)
 
     while True:
-        # List instances
         print("\nAvailable Instances:")
         print("-" * 70)
         instances = list_instances()
-
         basic = [i for i in instances if "basic" in i]
         challenging = [i for i in instances if "challenge" in i]
 
         print("\nBASIC:")
         for idx, name in enumerate(basic, 1):
             print(f"  {idx}. {name}")
-
         print("\nCHALLENGING:")
         for idx, name in enumerate(challenging, len(basic) + 1):
             print(f"  {idx}. {name}")
@@ -607,47 +616,44 @@ def main_menu():
             choice_num = int(choice)
             if 1 <= choice_num <= len(instances):
                 instance_name = instances[choice_num - 1]
-
-                # Load instance
                 cargo_items, container = get_instance(instance_name)
-                print(f"\nLoaded: {instance_name}")
+
+                print(f"\n✓ Loaded: {instance_name}")
                 print(
-                    f"Container: {container.width}×{container.depth}m, {len(cargo_items)} cargo items"
+                    f"  Container: {container.width}×{container.depth}m, max {container.max_weight}kg"
                 )
+                print(f"  Cargo: {len(cargo_items)} items")
 
-                # Get GA parameters
-                pop = input("\nPopulation size (default: 100): ").strip()
-                pop_size = int(pop) if pop else 100
+                # Run GA with default parameters
+                print("\n" + "=" * 70)
+                print("RUNNING GENETIC ALGORITHM")
+                print("=" * 70)
+                print("Parameters: Population=100, Generations=500, Mutation=0.15")
 
-                gen = input("Generations (default: 500): ").strip()
-                generations = int(gen) if gen else 500
-
-                # Run GA
-                ga = GeneticAlgorithm(cargo_items, container, pop_size, generations)
+                ga = GeneticAlgorithm(cargo_items, container)
                 solution = ga.run(verbose=True)
 
-                # Display results
                 print("\n" + "=" * 70)
                 print("RESULTS")
                 print("=" * 70)
-                print(f"Fitness: {solution.fitness:.2f}")
+                print(f"\nFitness: {solution.fitness:.2f}")
                 print(f"Order: {solution.order}")
+                if solution.complete:
+                    com_x, com_y = solution.get_center_of_mass()
+                    print(f"COM: ({com_x:.2f}, {com_y:.2f})")
 
-                # Visualize
                 show_viz = input("\nShow visualization? (y/n): ").strip().lower()
                 if show_viz == "y":
                     viz = CargoVisualizer(solution)
                     viz.draw(title=instance_name)
                     plt.show()
 
-                # Continue?
                 cont = input("\nSolve another? (y/n): ").strip().lower()
                 if cont != "y":
                     print("\nGoodbye!")
                     break
             else:
-                print(f"Please enter 1-{len(instances)}")
-
+                print(f"Enter 1-{len(instances)}")
         except ValueError:
             print("Invalid input")
         except Exception as e:
