@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from typing import Dict, List, Tuple
 
 import matplotlib.pyplot as plt
-from matplotlib.backend_tools import ToolCursorPosition
 from matplotlib.patches import Circle as PltCircle
 from matplotlib.patches import Rectangle as PltRectangle
 
@@ -198,13 +197,14 @@ class GeneticAlgorithm:
         container: Container,
         population_size: int = 100,
         generations: int = 500,
-        mutation_rate: float = 0.15,
+        mutation_rate: float = 0.30,
         crossover_rate: float = 0.8,
         tournament_size: int = 3,
         elite_size: int = 2,
     ):
         self.cargo_items = cargo_items
         self.container = container
+        self.num_items = len(cargo_items)
         self.population_size = population_size
         self.generations = generations
         self.mutation_rate = mutation_rate
