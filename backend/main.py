@@ -139,7 +139,7 @@ def select_algorithm():
 def run_algorithm(algorithm: str, cargo_items: List[Cargo], container: Container):
     """Run the selected algorithm"""
     if algorithm == 'random':
-        from algorithms.random_cargo import RandomSearch
+        from algorithms.random_cargo import random_search
         
         print("\n" + "="*70)
         print("RUNNING RANDOM SEARCH")
@@ -149,7 +149,7 @@ def run_algorithm(algorithm: str, cargo_items: List[Cargo], container: Container
         iterations = int(iterations) if iterations else 1000
         
         print(f"\nSearching {iterations} random permutations...")
-        search = RandomSearch(cargo_items, container, iterations)
+        search = random_search(cargo_items, container, iterations)
         solution = search.run(verbose=True)
         
         return solution
