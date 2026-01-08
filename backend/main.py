@@ -60,7 +60,7 @@ class Solution:
 # CARGO PLACEMENT
 
 # Configuration
-GRID_STEP = 0.1  # Position grid resolution (units)
+GRID_STEP = 0.5  # Position grid resolution (units)
 
 
 def place_cargo(
@@ -75,24 +75,19 @@ def place_cargo(
     for cargo_id in order:
         cargo = cargo_copy[cargo_id]
         radius = cargo.diameter / 2.0
-
-        # Try to find a valid position
         position_found = False
 
-        # Scan from back-left (0,0) moving right then forward
+        # Simple bottom-left: first valid position found
         y = 0.0
         while y <= container.depth and not position_found:
             x = 0.0
             while x <= container.width and not position_found:
-                # Calculate center position
                 center_x = x + radius
                 center_y = y + radius
 
-                # Check if this position is valid
                 if is_valid_position(
                     center_x, center_y, radius, placed_cargo, container
                 ):
-                    # Place the cargo here
                     cargo.x = center_x
                     cargo.y = center_y
                     cargo.placed = True
@@ -102,10 +97,9 @@ def place_cargo(
                 x += GRID_STEP
             y += GRID_STEP
 
-        # If we couldn't place this cargo item, solution is incomplete
         if not position_found:
             complete = False
-            break  # Stop trying to place remaining items
+            break
 
     # Create solution object
     solution = Solution(
