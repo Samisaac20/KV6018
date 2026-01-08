@@ -565,3 +565,107 @@ def list_instances() -> List[str]:
 
     instances = create_basic_instances() + create_challenging_instances()
     return [inst.name for inst in instances]
+
+
+# MENU SYSTEM
+
+
+def main_menu():
+    """Main program loop"""
+    print("\n" + "=" * 70)
+    print("CARGO CONTAINER LOADING - GENETIC ALGORITHM")
+    print("KV6018 Evolutionary Computing Assessment")
+    print("=" * 70)
+
+    while True:
+        # List instances
+        print("\nAvailable Instances:")
+        print("-" * 70)
+        instances = list_instances()
+
+        basic = [i for i in instances if "basic" in i]
+        challenging = [i for i in instances if "challenge" in i]
+
+        print("\nBASIC:")
+        for idx, name in enumerate(basic, 1):
+            print(f"  {idx}. {name}")
+
+        print("\nCHALLENGING:")
+        for idx, name in enumerate(challenging, len(basic) + 1):
+            print(f"  {idx}. {name}")
+
+        print("\n" + "-" * 70)
+        choice = input(
+            f"\nSelect instance (1-{len(instances)}) or 'q' to quit: "
+        ).strip()
+
+        if choice.lower() == "q":
+            print("\nGoodbye!")
+            break
+
+        try:
+            choice_num = int(choice)
+            if 1 <= choice_num <= len(instances):
+                instance_name = instances[choice_num - 1]
+
+                # Load instance
+                cargo_items, container = get_instance(instance_name)
+                print(f"\nLoaded: {instance_name}")
+                print(
+                    f"Container: {container.width}×{container.depth}m, {len(cargo_items)} cargo items"
+                )
+
+                # Get GA parameters
+                pop = input("\nPopulation size (default: 100): ").strip()
+                pop_size = int(pop) if pop else 100
+
+                gen = input("Generations (default: 500): ").strip()
+                generations = int(gen) if gen else 500
+
+                # Run GA
+                ga = GeneticAlgorithm(cargo_items, container, pop_size, generations)
+                solution = ga.run(verbose=True)
+
+                # Display results
+                print("\n" + "=" * 70)
+                print("RESULTS")
+                print("=" * 70)
+                print(f"Fitness: {solution.fitness:.2f}")
+                print(f"Order: {solution.order}")
+
+                # Visualize
+                show_viz = input("\nShow visualization? (y/n): ").strip().lower()
+                if show_viz == "y":
+                    viz = CargoVisualizer(solution)
+                    viz.draw(title=instance_name)
+                    plt.show()
+
+                # Continue?
+                cont = input("\nSolve another? (y/n): ").strip().lower()
+                if cont != "y":
+                    print("\nGoodbye!")
+                    break
+            else:
+                print(f"Please enter 1-{len(instances)}")
+
+        except ValueError:
+            print("Invalid input")
+        except Exception as e:
+            print(f"Error: {e}")
+            import traceback
+
+            traceback.print_exc()
+
+
+# MAIN ENTRY POINT
+
+if __name__ == "__main__":
+    try:
+        main_menu()
+    except KeyboardInterrupt:
+        print("\n\nInterrupted. Goodbye!")
+    except Exception as e:
+        print(f"\nError: {e}")
+        import traceback
+
+        traceback.print_exc()
