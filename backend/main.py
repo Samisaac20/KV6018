@@ -167,20 +167,28 @@ def calculate_fitness(solution: Solution) -> float:
         violations["weight_penalty"] = penalty
 
     com_x, com_y = solution.get_center_of_mass()
+    safe_x_min = solution.container.width * 0.2
+    safe_x_max = solution.container.width * 0.8
+    safe_y_min = solution.container.depth * 0.2
+    safe_y_max = solution.container.depth * 0.8
 
-    # Calculate distance from IDEAL position (center of container)
-    ideal_x = solution.container.width / 2
-    ideal_y = solution.container.depth / 2
+    # Only penalize if OUTSIDE safe zone
+    com_violation = 0.0
+    if com_x < safe_x_min:
+        com_violation += safe_x_min - com_x
+    elif com_x > safe_x_max:
+        com_violation += com_x - safe_x_max
+    if com_y < safe_y_min:
+        com_violation += safe_y_min - com_y
+    elif com_y > safe_y_max:
+        com_violation += com_y - safe_y_max
 
-    com_distance = math.sqrt((com_x - ideal_x) ** 2 + (com_y - ideal_y) ** 2)
-
-    # Penalize distance from center
-    penalty = com_distance * PENALTY_COM_DISTANCE
-    total_penalty += penalty
-    violations["com_distance_from_center"] = com_distance
-    violations["com_penalty"] = penalty
-    violations["com_position"] = (com_x, com_y)
-    violations["ideal_position"] = (ideal_x, ideal_y)
+    if com_violation > 0:
+        penalty = com_violation * PENALTY_COM_DISTANCE
+        total_penalty += penalty
+        violations["com_distance_outside"] = com_violation
+        violations["com_penalty"] = penalty
+        violations["com_position"] = (com_x, com_y)
 
     solution.fitness = total_penalty
     solution.violations = violations
@@ -195,12 +203,12 @@ class GeneticAlgorithm:
         self,
         cargo_items: List[Cargo],
         container: Container,
-        population_size: int = 100,
+        population_size: int = 200,
         generations: int = 500,
         mutation_rate: float = 0.30,
         crossover_rate: float = 0.8,
         tournament_size: int = 3,
-        elite_size: int = 2,
+        elite_size: int = 5,
     ):
         self.cargo_items = cargo_items
         self.container = container
