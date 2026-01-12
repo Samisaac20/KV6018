@@ -202,12 +202,13 @@ class GeneticAlgorithm:
         self,
         cargo_items: List[Cargo],
         container: Container,
-        population_size: int = 100,
+        population_size: int = 200,
         generations: int = 500,
-        mutation_rate: float = 0.30,
+        mutation_rate: float = 0.1,
         crossover_rate: float = 0.8,
         tournament_size: int = 3,
         elite_size: int = 5,
+        stagnation_limit: int = 200
     ):
         self.cargo_items = cargo_items
         self.container = container
@@ -218,6 +219,7 @@ class GeneticAlgorithm:
         self.crossover_rate = crossover_rate
         self.tournament_size = tournament_size
         self.elite_size = elite_size
+        self.stagnation_limit = stagnation_limit
         self.population = []
         self.best_solution = None
         self.best_fitness = float("inf")
@@ -302,13 +304,31 @@ class GeneticAlgorithm:
         if verbose:
             print(f"\nInitial best fitness: {self.best_fitness:.2f}\n")
 
+        stagnant_count = 0
+
         for gen in range(1, self.generations + 1):
             self.population = self.evolve_generation()
 
-            for genome, solution, fitness in self.population:
-                if self._update_best(solution, fitness, gen) and verbose:
-                    print(f"Generation {gen}: New best = {fitness:.2f}")
+            improved = False
 
+            for genome, solution, fitness in self.population:
+                if fitness < self.best_fitness:
+                    self.best_fitness = fitness
+                    self.best_solution = solution
+                    self.best_generation = gen
+                    improved = True
+                    stagnant_count = 0
+                    if verbose:
+                        print(f"Generation {gen}: New best = {fitness:.2f}")
+            
+            if not improved:
+                stagnant_count += 1
+                if stagnant_count >= self.stagnation_limit:
+                    if verbose:
+                        print(f"\n No improvement for {self.stagnation_limit} generations")
+                        print(f"Stopping early at generation {gen}")
+                    break
+    
             self.fitness_history.append(self.best_fitness)
 
             if self.best_fitness == 0.0:
@@ -369,23 +389,22 @@ class CargoVisualizer:
 
         # Draw safe zone (central 60%)
         if show_safe_zone:
-            safe_x = self.container.width * 0.2
-            safe_y = self.container.depth * 0.2
-            safe_w = self.container.width * 0.6
-            safe_h = self.container.depth * 0.6
+            centre_x = self.container.width / 2
+            centre_y = self.container.depth / 2
 
-            safe_zone = PltRectangle(
-                (safe_x, safe_y),
-                safe_w,
-                safe_h,
+            safe_radius = 0.6 * min(self.container.width, self.container.depth) / 2
+
+            safe_circle = PltCircle(
+                (centre_x, centre_y),
+                safe_radius,
                 fill=False,
-                edgecolor="#4CAF50",
+                edgecolor="#F4BA02",
                 linewidth=2,
-                linestyle="--",
+                linestyle=":",
                 alpha=0.7,
                 label="Safe zone (60%)",
             )
-            ax.add_patch(safe_zone)
+            ax.add_patch(safe_circle)
 
         # Draw cargo items
         for cargo in self.solution.cargo_items:
@@ -484,7 +503,7 @@ class CargoVisualizer:
 
         # Set up axes
         ax.set_aspect("equal")
-        margin = max(self.container.width, self.container.depth) * 0.1
+        margin = 0.1
         ax.set_xlim(-margin, self.container.width + margin)
         ax.set_ylim(-margin, self.container.depth + margin)
 
