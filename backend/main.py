@@ -59,7 +59,7 @@ class Solution:
 # CARGO PLACEMENT
 
 # Configuration
-GRID_STEP = 0.1  # Position grid resolution (units)
+GRID_STEP = 0.5  # Position grid resolution (units)
 
 
 def place_cargo(
@@ -175,20 +175,19 @@ def calculate_fitness(solution: Solution) -> float:
     # Only penalize if OUTSIDE safe zone
     com_violation = 0.0
     if com_x < safe_x_min:
-        com_violation += safe_x_min - com_x
+        com_violation += (safe_x_min - com_x)
     elif com_x > safe_x_max:
-        com_violation += com_x - safe_x_max
+        com_violation += (com_x - safe_x_max)
     if com_y < safe_y_min:
-        com_violation += safe_y_min - com_y
+        com_violation += (safe_y_min - com_y)
     elif com_y > safe_y_max:
-        com_violation += com_y - safe_y_max
+        com_violation += (com_y - safe_y_max)
 
     if com_violation > 0:
         penalty = com_violation * PENALTY_COM_DISTANCE
         total_penalty += penalty
         violations["com_distance_outside"] = com_violation
         violations["com_penalty"] = penalty
-        violations["com_position"] = (com_x, com_y)
 
     solution.fitness = total_penalty
     solution.violations = violations
@@ -203,7 +202,7 @@ class GeneticAlgorithm:
         self,
         cargo_items: List[Cargo],
         container: Container,
-        population_size: int = 200,
+        population_size: int = 100,
         generations: int = 500,
         mutation_rate: float = 0.30,
         crossover_rate: float = 0.8,
@@ -319,7 +318,7 @@ class GeneticAlgorithm:
                     )
                 break
 
-            if verbose and gen % 50 == 0:
+            if verbose and gen % 100 == 0:
                 avg = sum(ind[2] for ind in self.population) / len(self.population)
                 print(f"Generation {gen}: Best={self.best_fitness:.2f}, Avg={avg:.2f}")
 
