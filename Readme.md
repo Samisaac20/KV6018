@@ -2,7 +2,7 @@
 
 **KV6018 Evolutionary Computing Assessment**
 
---- 
+---
 
 ## Quick start
 
@@ -13,7 +13,7 @@ backend/
 ├── main.py
 └── container_instances.py
 ```
-  
+
 ### 2. Install Dependencies
 
 ```
@@ -49,6 +49,7 @@ Select instance (1-7) or 'q' to quit: 1
 ```
 
 ### GA Runs Automatically
+
 ```
 ✓ Loaded: basic_01_three_identical
   Container: 10.0×10.0m, max 100.0kg
@@ -68,18 +69,20 @@ Generation 15: New best = 0.00
 ## 📊 Parameters
 
 The GA uses these fixed parameters:
-- **Population:** 100
-- **Generations:** 500
-- **Mutation Rate:** 0.15
-- **Crossover Rate:** 0.8
-- **Tournament Size:** 3
-- **Elite Size:** 2
+
+- **Population:** ?
+- **Generations:** ?
+- **Mutation Rate:** ?
+- **Crossover Rate:** ?
+- **Tournament Size:** ?
+- **Elite Size:** ?
 
 ---
 
 ## Expected Results
 
 The GA should solve:
+
 - **All basic instances** to fitness = 0.0
 - **Most challenging instances** to fitness = 0.0
 
@@ -92,6 +95,7 @@ Typical solve time: 10-60 seconds depending on instance complexity.
 ## Visualization
 
 Week 7 compatible styling:
+
 - **Yellow** - Container boundary
 - **Green** - Safe zone & perfect solutions
 - **Blue** - Sub-optimal solutions
@@ -102,12 +106,15 @@ Week 7 compatible styling:
 ## Troubleshooting
 
 **Error: "No module named 'container_instances'"**
+
 - Make sure both files are in the same directory
 
 **Error: "No module named 'matplotlib'"**
+
 - Run: `pip install matplotlib`
 
 **No visualization showing**
+
 - Type `y` when asked "Show visualization? (y/n):"
 
 ---
