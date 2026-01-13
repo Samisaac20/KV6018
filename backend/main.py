@@ -10,11 +10,9 @@ from matplotlib.patches import Rectangle as PltRectangle
 
 # DATA STRUCTURES
 
-
 @dataclass
 class Cargo:
     """Cylindrical cargo item to be placed in container"""
-
     id: int
     diameter: float
     weight: float
@@ -26,7 +24,6 @@ class Cargo:
 @dataclass
 class Container:
     """Rectangular container specifications"""
-
     width: float
     depth: float
     max_weight: float
@@ -35,7 +32,6 @@ class Container:
 @dataclass
 class Solution:
     """Complete solution with placement and evaluation"""
-
     order: List[int]
     cargo_items: List[Cargo]
     complete: bool
@@ -59,7 +55,7 @@ class Solution:
 # CARGO PLACEMENT
 
 # Configuration
-GRID_STEP = 0.5  # Position grid resolution (units)
+GRID_STEP = 0.2  # Position grid resolution (units)
 
 
 def place_cargo(
@@ -252,6 +248,11 @@ class GeneticAlgorithm:
             calculate_fitness(solution)
             self.population.append((genome, solution, solution.fitness))
 
+            if solution.fitness < self.best_fitness:
+                self.best_fitness = solution.fitness
+                self.best_solution = solution
+                self.best_generation = 0
+
     def tournament_selection(self) -> List[int]:
         tournament = random.sample(self.population, self.tournament_size)
         return min(tournament, key=lambda ind: ind[2])[0].copy()
@@ -334,23 +335,12 @@ class GeneticAlgorithm:
                         print(f"Stopping early at generation {gen}")
                     break
 
-            if stagnant_count > 20:
+            if stagnant_count > 30:
                 # Temporarily increase mutation
                 original_mut = self.mutation_rate
                 self.mutation_rate = min(0.5, self.mutation_rate * 1.5)
                 if verbose and stagnant_count == 21:
                     print(f"  Increasing mutation to {self.mutation_rate:.2f}")
-
-            # reset mutation rate if mutation change did not work
-            if stagnant_count >= self.stagnation_limit:
-                self.mutation_rate = mutation_rate
-                if verbose:
-                    print(f"\n  Restarting with new population...")
-                self.initialise_population()
-                stagnant_count = 0
-                restarts += 1
-                if restarts >= 3:
-                    break  # Give up after 3 restarts
     
             self.fitness_history.append(self.best_fitness)
 
