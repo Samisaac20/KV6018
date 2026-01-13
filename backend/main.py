@@ -664,7 +664,7 @@ def main_menu():
                     vis = CargoVisualiser(solution)
                     vis.draw(title=instance_name)
                     
-                    filename = f'output/{instance_name}_fitness_{solution.fitness:.2f}.png'
+                    filename = f'.output/{instance_name}_fitness_{solution.fitness:.2f}.png'
                     plt.savefig(filename, dpi=300, bbox_inches='tight', facecolor='#01364C')
                     plt.close()
     
