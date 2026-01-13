@@ -88,7 +88,7 @@ def test_all_instances(output_file="ga_results.xlsx"):
             results.append(result)
             
             # Print summary
-            status = "✓ PERFECT" if final_fitness == 0 else f"⚠ {final_fitness:.2f}"
+            status = "PERFECT" if final_fitness == 0 else f" {final_fitness:.2f}"
             print(f"\nResult: {status}")
             print(f"  Initial: {initial_fitness:.2f} → Final: {final_fitness:.2f}")
             print(f"  Improvement: {improvement:.2f} ({improvement_pct:.1f}%)")
@@ -97,7 +97,7 @@ def test_all_instances(output_file="ga_results.xlsx"):
             print(f"  COM: ({com_x:.2f}, {com_y:.2f})")
             
         except Exception as e:
-            print(f"\n❌ ERROR on {instance_name}: {e}")
+            print(f"\n ERROR on {instance_name}: {e}")
             import traceback
             traceback.print_exc()
             
@@ -168,7 +168,7 @@ def test_all_instances(output_file="ga_results.xlsx"):
     
     for result in results:
         if 'Error' not in result:
-            status = "✓ PERFECT" if result['Perfect_Solution'] else "⚠ Stuck"
+            status = "PERFECT" if result['Perfect_Solution'] else "⚠ Stuck"
             print(f"{result['Instance']:<35} "
                   f"{result['Initial_Fitness']:<10.2f} "
                   f"{result['Final_Fitness']:<10.2f} "
@@ -204,7 +204,7 @@ if __name__ == "__main__":
         import pandas as pd
         import openpyxl
     except ImportError:
-        print("\n❌ Required libraries not installed!")
+        print("\n Required libraries not installed!")
         print("Run: pip install pandas openpyxl")
         sys.exit(1)
     

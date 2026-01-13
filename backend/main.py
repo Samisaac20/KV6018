@@ -202,13 +202,13 @@ class GeneticAlgorithm:
         self,
         cargo_items: List[Cargo],
         container: Container,
-        population_size: int = 1000,
+        population_size: int = 200,
         generations: int = 1000,
         mutation_rate: float = 0.15,
         crossover_rate: float = 0.8,
         tournament_size: int = 3,
         elite_size: int = 5,
-        stagnation_limit: int = 200
+        stagnation_limit: int = 100
     ):
         self.cargo_items = cargo_items
         self.container = container
@@ -328,6 +328,22 @@ class GeneticAlgorithm:
                         print(f"\n No improvement for {self.stagnation_limit} generations")
                         print(f"Stopping early at generation {gen}")
                     break
+
+            if stagnant_count > 20:
+                # Temporarily increase mutation
+                original_mut = self.mutation_rate
+                self.mutation_rate = min(0.5, self.mutation_rate * 1.5)
+                if verbose and stagnant_count == 21:
+                    print(f"  Increasing mutation to {self.mutation_rate:.2f}")
+
+            if stagnant_count >= self.stagnation_limit:
+                if verbose:
+                    print(f"\n  Restarting with new population...")
+                self.initialize_population()
+                stagnant_count = 0
+                restarts += 1
+                if restarts >= 3:
+                    break  # Give up after 3 restarts
     
             self.fitness_history.append(self.best_fitness)
 
@@ -641,11 +657,16 @@ def main_menu():
                     com_x, com_y = solution.get_center_of_mass()
                     print(f"COM: ({com_x:.2f}, {com_y:.2f})")
 
-                show_viz = input("\nShow visualization? (y/n): ").strip().lower()
+                show_viz = input("\nSave visualization? (y/n): ").strip().lower()
                 if show_viz == "y":
                     viz = CargoVisualizer(solution)
                     viz.draw(title=instance_name)
-                    plt.show()
+                    
+                    filename = f'output/{instance_name}_fitness_{solution.fitness:.2f}.png'
+                    plt.savefig(filename, dpi=300, bbox_inches='tight', facecolor='#01364C')
+                    plt.close()
+    
+                    print(f"\nVisualization saved to: {filename}")
 
                 cont = input("\nSolve another? (y/n): ").strip().lower()
                 if cont != "y":
