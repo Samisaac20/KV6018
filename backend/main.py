@@ -43,7 +43,7 @@ class Solution:
     violations: Dict[str, float]
     container: Container
 
-    def get_centre_of_mass(self) -> Tuple[float, float]:
+    def get_center_of_mass(self) -> Tuple[float, float]:
         """Calculate centre of mass for placed cargo"""
         placed = [c for c in self.cargo_items if c.placed]
         if not placed:
@@ -81,14 +81,14 @@ def place_cargo(
         while y <= container.depth and not position_found:
             x = 0.0
             while x <= container.width and not position_found:
-                centre_x = x + radius
-                centre_y = y + radius
+                center_x = x + radius
+                center_y = y + radius
 
                 if is_valid_position(
-                    centre_x, centre_y, radius, placed_cargo, container
+                    center_x, center_y, radius, placed_cargo, container
                 ):
-                    cargo.x = centre_x
-                    cargo.y = centre_y
+                    cargo.x = center_x
+                    cargo.y = center_y
                     cargo.placed = True
                     placed_cargo.append(cargo)
                     position_found = True
@@ -168,21 +168,21 @@ def calculate_fitness(solution: Solution) -> float:
         violations["excess_weight_kg"] = excess_weight
         violations["weight_penalty"] = penalty
 
-    # Centre of mass outside circular safe zone
-    com_x, com_y = solution.get_centre_of_mass()
-    centre_x = solution.container.width / 2
-    centre_y = solution.container.depth / 2
+    # centre of mass outside circular safe zone
+    com_x, com_y = solution.get_center_of_mass()
+    center_x = solution.container.width / 2
+    center_y = solution.container.depth / 2
 
     # safe zone radius = 60% of container
     safe_radius = 0.6 * min(solution.container.width, solution.container.depth) / 2
-    com_distance_from_centre = math.sqrt(
-        (com_x - centre_x)**2 + (com_y - centre_y)**2
+    com_distance_from_center = math.sqrt(
+        (com_x - center_x)**2 + (com_y - center_y)**2
     )
 
     # distance from centre
     com_violation = 0.0
-    if com_distance_from_centre > safe_radius:
-        com_violation = com_distance_from_centre - safe_radius
+    if com_distance_from_center > safe_radius:
+        com_violation = com_distance_from_center - safe_radius
 
     if com_violation > 0:
         penalty = com_violation * PENALTY_COM_DISTANCE
@@ -308,6 +308,7 @@ class GeneticAlgorithm:
             print(f"\nInitial best fitness: {self.best_fitness:.2f}\n")
 
         stagnant_count = 0
+        original_mutation_rate = self.mutation_rate 
 
         for gen in range(1, self.generations + 1):
             self.population = self.evolve_generation()
@@ -321,6 +322,7 @@ class GeneticAlgorithm:
                     self.best_generation = gen
                     improved = True
                     stagnant_count = 0
+                    self.mutation_rate = original_mutation_rate
                     if verbose:
                         print(f"Generation {gen}: New best = {fitness:.2f}")
             
@@ -409,13 +411,13 @@ class CargoVisualiser:
 
         # Draw safe zone (central 60%)
         if show_safe_zone:
-            centre_x = self.container.width / 2
-            centre_y = self.container.depth / 2
+            center_x = self.container.width / 2
+            center_y = self.container.depth / 2
 
             safe_radius = 0.6 * min(self.container.width, self.container.depth) / 2
 
             safe_circle = PltCircle(
-                (centre_x, centre_y),
+                (center_x, center_y),
                 safe_radius,
                 fill=False,
                 edgecolor="#F4BA02",
@@ -458,8 +460,8 @@ class CargoVisualiser:
                     cargo.x,
                     cargo.y,
                     f"{cargo.id}",
-                    ha="centre",
-                    va="centre",
+                    ha="center",
+                    va="center",
                     color="#F7F8F9",
                     fontsize=11,
                     weight="bold",
@@ -470,7 +472,7 @@ class CargoVisualiser:
                     cargo.x,
                     cargo.y + radius + 0.3,
                     f"{int(cargo.weight)}kg",
-                    ha="centre",
+                    ha="center",
                     va="top",
                     color="#F7F8F9",
                     fontsize=8,
@@ -479,7 +481,7 @@ class CargoVisualiser:
 
         # Draw centre of mass
         if show_com and self.solution.complete:
-            com_x, com_y = self.solution.get_centre_of_mass()
+            com_x, com_y = self.solution.get_center_of_mass()
 
             # COM marker with crosshair
             ax.plot(
@@ -489,7 +491,7 @@ class CargoVisualiser:
                 color="#FF0000",
                 markersize=15,
                 markeredgewidth=3,
-                label="centre of Mass",
+                label="center of Mass",
             )
 
             # Draw reference lines
@@ -541,7 +543,7 @@ class CargoVisualiser:
             if self.solution.fitness == 0
             else f"Fitness: {self.solution.fitness:.2f}"
         )
-        com_x, com_y = self.solution.get_centre_of_mass()
+        com_x, com_y = self.solution.get_center_of_mass()
 
         title_text = f"{title}\n{fitness_text} | COM: ({com_x:.2f}, {com_y:.2f})"
         ax.set_title(title_text, color="#F7F8F9", fontsize=14, pad=20, weight="bold")
@@ -656,7 +658,7 @@ def main_menu():
                 print(f"\nFitness: {solution.fitness:.2f}")
                 print(f"Order: {solution.order}")
                 if solution.complete:
-                    com_x, com_y = solution.get_centre_of_mass()
+                    com_x, com_y = solution.get_center_of_mass()
                     print(f"COM: ({com_x:.2f}, {com_y:.2f})")
 
                 show_vis = input("\nSave visualisation? (y/n): ").strip().lower()
@@ -664,10 +666,14 @@ def main_menu():
                     vis = CargoVisualiser(solution)
                     vis.draw(title=instance_name)
                     
-                    filename = f'.output/{instance_name}_fitness_{solution.fitness:.2f}.png'
+                    # Ensure output directory exists
+                    import os
+                    os.makedirs('./output', exist_ok=True)
+                    
+                    filename = f'./output/{instance_name}_fitness_{solution.fitness:.2f}.png'
                     plt.savefig(filename, dpi=300, bbox_inches='tight', facecolor='#01364C')
                     plt.close()
-    
+
                     print(f"\nVisualisation saved to: {filename}")
 
                 cont = input("\nSolve another? (y/n): ").strip().lower()
