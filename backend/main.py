@@ -43,8 +43,8 @@ class Solution:
     violations: Dict[str, float]
     container: Container
 
-    def get_center_of_mass(self) -> Tuple[float, float]:
-        """Calculate center of mass for placed cargo"""
+    def get_centre_of_mass(self) -> Tuple[float, float]:
+        """Calculate centre of mass for placed cargo"""
         placed = [c for c in self.cargo_items if c.placed]
         if not placed:
             return (0, 0)
@@ -81,14 +81,14 @@ def place_cargo(
         while y <= container.depth and not position_found:
             x = 0.0
             while x <= container.width and not position_found:
-                center_x = x + radius
-                center_y = y + radius
+                centre_x = x + radius
+                centre_y = y + radius
 
                 if is_valid_position(
-                    center_x, center_y, radius, placed_cargo, container
+                    centre_x, centre_y, radius, placed_cargo, container
                 ):
-                    cargo.x = center_x
-                    cargo.y = center_y
+                    cargo.x = centre_x
+                    cargo.y = centre_y
                     cargo.placed = True
                     placed_cargo.append(cargo)
                     position_found = True
@@ -146,6 +146,7 @@ def calculate_fitness(solution: Solution) -> float:
     total_penalty = 0.0
     violations = {}
 
+    # Unplaced cargo items 
     unplaced_count = sum(1 for c in solution.cargo_items if not c.placed)
     if unplaced_count > 0:
         penalty = unplaced_count * PENALTY_UNPLACED
@@ -158,6 +159,7 @@ def calculate_fitness(solution: Solution) -> float:
         solution.violations = violations
         return total_penalty
 
+    # Weight limit violations
     total_weight = sum(c.weight for c in solution.cargo_items if c.placed)
     if total_weight > solution.container.max_weight:
         excess_weight = total_weight - solution.container.max_weight
@@ -166,29 +168,31 @@ def calculate_fitness(solution: Solution) -> float:
         violations["excess_weight_kg"] = excess_weight
         violations["weight_penalty"] = penalty
 
-    com_x, com_y = solution.get_center_of_mass()
-    safe_x_min = solution.container.width * 0.2
-    safe_x_max = solution.container.width * 0.8
-    safe_y_min = solution.container.depth * 0.2
-    safe_y_max = solution.container.depth * 0.8
+    # Centre of mass outside circular safe zone
+    com_x, com_y = solution.get_centre_of_mass()
+    centre_x = solution.container.width / 2
+    centre_y = solution.container.depth / 2
 
-    # Only penalize if OUTSIDE safe zone
+    # safe zone radius = 60% of container
+    safe_radius = 0.6 * min(solution.container.width, solution.container.depth) / 2
+    com_distance_from_centre = math.sqrt(
+        (com_x - centre_x)**2 + (com_y - centre_y)**2
+    )
+
+    # distance from centre
     com_violation = 0.0
-    if com_x < safe_x_min:
-        com_violation += (safe_x_min - com_x)
-    elif com_x > safe_x_max:
-        com_violation += (com_x - safe_x_max)
-    if com_y < safe_y_min:
-        com_violation += (safe_y_min - com_y)
-    elif com_y > safe_y_max:
-        com_violation += (com_y - safe_y_max)
+    if com_distance_from_centre > safe_radius:
+        com_violation = com_distance_from_centre - safe_radius
 
     if com_violation > 0:
         penalty = com_violation * PENALTY_COM_DISTANCE
         total_penalty += penalty
         violations["com_distance_outside"] = com_violation
         violations["com_penalty"] = penalty
+        violations["com_position"] = (com_x, com_y)
+        violations["safe_radius"] = safe_radius
 
+    # store results in object
     solution.fitness = total_penalty
     solution.violations = violations
     return total_penalty
@@ -196,14 +200,13 @@ def calculate_fitness(solution: Solution) -> float:
 
 # GENETIC ALGORITHM
 
-
 class GeneticAlgorithm:
     def __init__(
         self,
         cargo_items: List[Cargo],
         container: Container,
         population_size: int = 200,
-        generations: int = 1000,
+        generations: int = 500,
         mutation_rate: float = 0.15,
         crossover_rate: float = 0.8,
         tournament_size: int = 3,
@@ -241,7 +244,7 @@ class GeneticAlgorithm:
             return True
         return False
 
-    def initialize_population(self):
+    def initialise_population(self):
         for _ in range(self.population_size):
             genome = list(range(self.num_items))
             random.shuffle(genome)
@@ -298,7 +301,7 @@ class GeneticAlgorithm:
             )
             print(f"Mutation: {self.mutation_rate}, Crossover: {self.crossover_rate}")
 
-        self.initialize_population()
+        self.initialise_population()
         self.fitness_history.append(self.best_fitness)
 
         if verbose:
@@ -336,10 +339,12 @@ class GeneticAlgorithm:
                 if verbose and stagnant_count == 21:
                     print(f"  Increasing mutation to {self.mutation_rate:.2f}")
 
+            # reset mutation rate if mutation change did not work
             if stagnant_count >= self.stagnation_limit:
+                self.mutation_rate = mutation_rate
                 if verbose:
                     print(f"\n  Restarting with new population...")
-                self.initialize_population()
+                self.initialise_population()
                 stagnant_count = 0
                 restarts += 1
                 if restarts >= 3:
@@ -378,16 +383,15 @@ class GeneticAlgorithm:
 
 # VISUALISATION
 
-
-class CargoVisualizer:
-    """Week 7 compatible visualization"""
+class CargoVisualiser:
+    """Week 7 compatible visualisation"""
 
     def __init__(self, solution: Solution):
         self.solution = solution
         self.container = solution.container
 
     def draw(self, title="Cargo Container Loading", show_com=True, show_safe_zone=True):
-        """Draw solution using Week 7 visualization style"""
+        """Draw solution using Week 7 visualisation style"""
         fig, ax = plt.subplots(figsize=(12, 10))
 
         # Draw container rectangle
@@ -446,7 +450,7 @@ class CargoVisualizer:
                 )
                 ax.add_patch(cargo_patch)
 
-                # Center point
+                # centre point
                 ax.plot(cargo.x, cargo.y, "o", color=edge_color, markersize=6)
 
                 # Label with ID
@@ -454,8 +458,8 @@ class CargoVisualizer:
                     cargo.x,
                     cargo.y,
                     f"{cargo.id}",
-                    ha="center",
-                    va="center",
+                    ha="centre",
+                    va="centre",
                     color="#F7F8F9",
                     fontsize=11,
                     weight="bold",
@@ -466,16 +470,16 @@ class CargoVisualizer:
                     cargo.x,
                     cargo.y + radius + 0.3,
                     f"{int(cargo.weight)}kg",
-                    ha="center",
+                    ha="centre",
                     va="top",
                     color="#F7F8F9",
                     fontsize=8,
                     style="italic",
                 )
 
-        # Draw center of mass
+        # Draw centre of mass
         if show_com and self.solution.complete:
-            com_x, com_y = self.solution.get_center_of_mass()
+            com_x, com_y = self.solution.get_centre_of_mass()
 
             # COM marker with crosshair
             ax.plot(
@@ -485,7 +489,7 @@ class CargoVisualizer:
                 color="#FF0000",
                 markersize=15,
                 markeredgewidth=3,
-                label="Center of Mass",
+                label="centre of Mass",
             )
 
             # Draw reference lines
@@ -537,7 +541,7 @@ class CargoVisualizer:
             if self.solution.fitness == 0
             else f"Fitness: {self.solution.fitness:.2f}"
         )
-        com_x, com_y = self.solution.get_center_of_mass()
+        com_x, com_y = self.solution.get_centre_of_mass()
 
         title_text = f"{title}\n{fitness_text} | COM: ({com_x:.2f}, {com_y:.2f})"
         ax.set_title(title_text, color="#F7F8F9", fontsize=14, pad=20, weight="bold")
@@ -559,7 +563,6 @@ class CargoVisualizer:
 
 
 # INSATNCE LOADER
-
 
 def get_instance(instance_name: str) -> Tuple[List[Cargo], Container]:
     """Get instance from container_instances.py"""
@@ -597,7 +600,6 @@ def list_instances() -> List[str]:
 
 # MENU SYSTEM
 
-
 def main_menu():
     print("\n" + "=" * 70)
     print("CARGO CONTAINER LOADING - GENETIC ALGORITHM")
@@ -633,7 +635,7 @@ def main_menu():
                 instance_name = instances[choice_num - 1]
                 cargo_items, container = get_instance(instance_name)
 
-                print(f"\n✓ Loaded: {instance_name}")
+                print(f"\n Loaded: {instance_name}")
                 print(
                     f"  Container: {container.width}×{container.depth}m, max {container.max_weight}kg"
                 )
@@ -654,19 +656,19 @@ def main_menu():
                 print(f"\nFitness: {solution.fitness:.2f}")
                 print(f"Order: {solution.order}")
                 if solution.complete:
-                    com_x, com_y = solution.get_center_of_mass()
+                    com_x, com_y = solution.get_centre_of_mass()
                     print(f"COM: ({com_x:.2f}, {com_y:.2f})")
 
-                show_viz = input("\nSave visualization? (y/n): ").strip().lower()
-                if show_viz == "y":
-                    viz = CargoVisualizer(solution)
-                    viz.draw(title=instance_name)
+                show_vis = input("\nSave visualisation? (y/n): ").strip().lower()
+                if show_vis == "y":
+                    vis = CargoVisualiser(solution)
+                    vis.draw(title=instance_name)
                     
                     filename = f'output/{instance_name}_fitness_{solution.fitness:.2f}.png'
                     plt.savefig(filename, dpi=300, bbox_inches='tight', facecolor='#01364C')
                     plt.close()
     
-                    print(f"\nVisualization saved to: {filename}")
+                    print(f"\nVisualisation saved to: {filename}")
 
                 cont = input("\nSolve another? (y/n): ").strip().lower()
                 if cont != "y":
