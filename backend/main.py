@@ -59,63 +59,138 @@ class Solution:
 # CARGO PLACEMENT (Bottom-left heuristic)
 # ============================================================================
 
-GRID_STEP = 0.1  # Position grid resolution (units)
+GRID_STEP = 0.5  # scanning resolution
 
-def place_cargo(
-    order: List[int], 
-    cargo_items: List[Cargo], 
-    container: Container,
-    grid_step: float = GRID_STEP,
-) -> Solution:
+def place_cargo(order, cargo_items, container, grid_step=GRID_STEP):
     """
-    Place cargo items in specified order using bottom-left heuristic.
+    Place cylinders according to order-based encoding, fully COM-aware.
+    - First cylinder at bottom-left (rear-left)
+    - Subsequent cylinders scanned rear-to-front, selecting positions
+      that keep running COM within central 60% along both axes
+    - Enforces weight limit during placement
+    - No cylinder is moved after placement
     """
-    # Make copies so we don't modify originals
+    from copy import deepcopy
     cargo_copy = [deepcopy(c) for c in cargo_items]
     placed_cargo = []
     complete = True
 
-    # Place each cargo item in the specified order
-    for cargo_id in order:
-        cargo = cargo_copy[cargo_id]
-        radius = cargo.diameter / 2.0
+    total_weight = 0.0
+    com_x = 0.0
+    com_y = 0.0
+
+
+    # Step 1: Place first cylinder at rear-left
+    first_id = order[0]
+    first_cyl = cargo_copy[first_id]
+    radius = first_cyl.diameter / 2.0
+    first_cyl.x = radius
+    first_cyl.y = radius  # rear edge
+    first_cyl.placed = True
+    placed_cargo.append(first_cyl)
+
+    total_weight += first_cyl.weight
+    com_x = first_cyl.weight * first_cyl.x / total_weight
+    com_y = first_cyl.weight * first_cyl.y / total_weight
+
+    # COM safe zone (central 60%)
+    com_x_min = 0.2 * container.width
+    com_x_max = 0.8 * container.width
+    com_y_min = 0.2 * container.depth
+    com_y_max = 0.8 * container.depth
+    com_x_center = (com_x_min + com_x_max) / 2.0
+    com_y_center = (com_y_min + com_y_max) / 2.0
+
+
+    # Step 2: Place remaining cylinders
+    for idx in range(1, len(order)):
+        cyl_id = order[idx]
+        cyl = cargo_copy[cyl_id]
+        radius = cyl.diameter / 2.0
         position_found = False
 
-        # Simple bottom-left: first valid position found
+        best_candidate = None
+        best_score = (float("inf"), float("inf"), float("inf"))
+
+        # Scan from rear (y=0) to front
         y = 0.0
-        while y <= container.depth and not position_found:
-            x = 0.0
-            while x <= container.width and not position_found:
-                center_x = x + radius
-                center_y = y + radius
+        while y + cyl.diameter <= container.depth + 1e-9 and not position_found:
+            # Bias x scan towards container midline to help COM
+            x_positions = []
+            center_start = max(0.0, min(container.width - cyl.diameter, container.width / 2 - radius))
+            k = 0
+            while True:
+                for sign in (1, -1) if k > 0 else (1,):
+                    x = center_start + sign * k * grid_step
+                    if 0 <= x <= container.width - cyl.diameter + 1e-9:
+                        x_positions.append(x)
+                k += 1
+                if center_start + k * grid_step > container.width - cyl.diameter + 1e-9 and center_start - k * grid_step < -1e-9:
+                    break
 
-                if is_valid_position(
-                    center_x, center_y, radius, placed_cargo, container
-                ):
-                    cargo.x = center_x
-                    cargo.y = center_y
-                    cargo.placed = True
-                    placed_cargo.append(cargo)
-                    position_found = True
+            for x in x_positions:
+                candidate_x = x + radius
+                candidate_y = y + radius
 
-                x += grid_step
+                # Check geometric validity
+                if is_valid_position(candidate_x, candidate_y, radius, placed_cargo, container):
+                    # Enforce weight limit during placement
+                    new_total_weight = total_weight + cyl.weight
+                    if new_total_weight > container.max_weight + 1e-9:
+                        continue
+
+                    # Tentative running COM if placed here
+                    new_com_x = (com_x * total_weight + cyl.weight * candidate_x) / new_total_weight
+                    new_com_y = (com_y * total_weight + cyl.weight * candidate_y) / new_total_weight
+
+                    # Penalise distance from safe-zone centre and being outside bounds
+                    def axis_penalty(val, low, high, center):
+                        if val < low:
+                            return (low - val) * 2  # stronger penalty outside
+                        if val > high:
+                            return (val - high) * 2
+                        return abs(val - center)
+
+                    com_penalty = axis_penalty(new_com_x, com_x_min, com_x_max, com_x_center) + axis_penalty(new_com_y, com_y_min, com_y_max, com_y_center)
+
+                    # Tie-breaker: prefer lower y (rear first), then lower x for tighter packing
+                    score = (com_penalty, candidate_y, candidate_x)
+
+                    if score < best_score:
+                        best_candidate = (candidate_x, candidate_y)
+                        best_score = score
+
             y += grid_step
 
-        if not position_found:
+        # Place at best candidate found
+        if best_candidate is not None:
+            cyl.x, cyl.y = best_candidate
+            cyl.placed = True
+            placed_cargo.append(cyl)
+
+            # Update running COM
+            total_weight += cyl.weight
+            com_x = sum(c.weight * c.x for c in placed_cargo) / total_weight
+            com_y = sum(c.weight * c.y for c in placed_cargo) / total_weight
+
+        else:
             complete = False
             break
 
-    # Create solution object
+
+    # Step 3: Return solution
     solution = Solution(
         order=order,
         cargo_items=cargo_copy,
         complete=complete,
-        fitness=0.0,
+        fitness=0.0,  # will be calculated separately
         violations={},
         container=container,
     )
 
     return solution
+
+
 
 
 def is_valid_position(
@@ -492,9 +567,8 @@ def main_menu():
                 print("  1. Genetic Algorithm (GA)")
                 print("  2. Random Search")
                 print("  3. Greedy Seach")
-                print("  4. Ant Conlony Optimisation")
                 
-                algo_choice = input("\nChoice (1-4): ").strip()
+                algo_choice = input("\nChoice (1-3): ").strip()
                 
                 if algo_choice == "1":
                     # Run GA
@@ -532,27 +606,6 @@ def main_menu():
                     solution = gs.run(verbose=True)
                     algo_abbrev = "GR"
 
-                elif algo_choice == "4":
-                    # Run Ant Colony Optimisation
-                    from ant_cargo import AntColonyOptimisation
-
-                    print("\n" + "=" * 70)
-                    print("RUNNING ANT COLONY OPTIMISATION")
-                    print("=" * 70)
-
-                    aco = AntColonyOptimisation(
-                        cargo_items,
-                        container,
-                        n_ants=25,
-                        n_iterations=150,
-                        alpha=1.0,
-                        beta=2.0,
-                        evaporation=0.4,
-                    )
-
-                    solution = aco.run(verbose=True)
-                    algo_abbrev = "ACO"
-                    
                 else:
                     print("Invalid choice, defaulting to GA")
                     from genetic_cargo import GeneticAlgorithm
@@ -575,11 +628,16 @@ def main_menu():
                     vis = CargoVisualiser(solution)
                     vis.draw(title=instance_name)
 
-                    # Ensure output directory exists
-                    os.makedirs('./output', exist_ok=True)
+                    # Ensure algorithm-specific output directory exists (e.g. ./output/GA)
+                    base_output_dir = "./output"
+                    algo_output_dir = os.path.join(base_output_dir, algo_abbrev)
+                    os.makedirs(algo_output_dir, exist_ok=True)
 
-                    filename = f'./output/{instance_name}_{algo_abbrev}_fitness_{solution.fitness:.2f}.png'
-                    plt.savefig(filename, dpi=300, bbox_inches='tight', facecolor='#01364C')
+                    filename = os.path.join(
+                        algo_output_dir,
+                        f"{instance_name}_{algo_abbrev}_fitness_{solution.fitness:.2f}.png",
+                    )
+                    plt.savefig(filename, dpi=300, bbox_inches="tight", facecolor="#01364C")
                     plt.close()
 
                     print(f"\nVisualisation saved to: {filename}")
