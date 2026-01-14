@@ -59,10 +59,13 @@ class Solution:
 # CARGO PLACEMENT (Bottom-left heuristic)
 # ============================================================================
 
-GRID_STEP = 0.5  # Position grid resolution (units)
+GRID_STEP = 0.1  # Position grid resolution (units)
 
 def place_cargo(
-    order: List[int], cargo_items: List[Cargo], container: Container
+    order: List[int], 
+    cargo_items: List[Cargo], 
+    container: Container,
+    grid_step: float = GRID_STEP,
 ) -> Solution:
     """
     Place cargo items in specified order using bottom-left heuristic.
@@ -95,8 +98,8 @@ def place_cargo(
                     placed_cargo.append(cargo)
                     position_found = True
 
-                x += GRID_STEP
-            y += GRID_STEP
+                x += grid_step
+            y += grid_step
 
         if not position_found:
             complete = False
@@ -144,7 +147,7 @@ def is_valid_position(
 # Penalty weights
 PENALTY_UNPLACED = 1000.0
 PENALTY_WEIGHT_KG = 10.0
-PENALTY_COM_DISTANCE = 100.0
+PENALTY_COM_DISTANCE = 50.0
 
 
 def calculate_fitness(solution: Solution) -> float:
@@ -478,7 +481,7 @@ def main_menu():
                 instance_name = instances[choice_num - 1]
                 cargo_items, container = get_instance(instance_name)
 
-                print(f"\n✓ Loaded: {instance_name}")
+                print(f"\n Loaded: {instance_name}")
                 print(
                     f"  Container: {container.width}×{container.depth}m, max {container.max_weight}kg"
                 )
@@ -488,8 +491,10 @@ def main_menu():
                 print("\nSelect Algorithm:")
                 print("  1. Genetic Algorithm (GA)")
                 print("  2. Random Search")
+                print("  3. Greedy Seach")
+                print("  4. Ant Conlony Optimisation")
                 
-                algo_choice = input("\nChoice (1-2): ").strip()
+                algo_choice = input("\nChoice (1-4): ").strip()
                 
                 if algo_choice == "1":
                     # Run GA
@@ -514,6 +519,39 @@ def main_menu():
                     rs = RandomSearch(cargo_items, container)
                     solution = rs.run(max_iterations=2000, verbose=True)
                     algo_abbrev = "RS"
+
+                elif algo_choice == "3":
+                    # Run Random Search
+                    from greedy_cargo import GreedySearch
+                    
+                    print("\n" + "=" * 70)
+                    print("RUNNING GREEDY SEARCH")
+                    print("=" * 70)
+                    
+                    gs = GreedySearch(cargo_items, container)
+                    solution = gs.run(verbose=True)
+                    algo_abbrev = "GR"
+
+                elif algo_choice == "4":
+                    # Run Ant Colony Optimisation
+                    from ant_cargo import AntColonyOptimisation
+
+                    print("\n" + "=" * 70)
+                    print("RUNNING ANT COLONY OPTIMISATION")
+                    print("=" * 70)
+
+                    aco = AntColonyOptimisation(
+                        cargo_items,
+                        container,
+                        n_ants=25,
+                        n_iterations=150,
+                        alpha=1.0,
+                        beta=2.0,
+                        evaporation=0.4,
+                    )
+
+                    solution = aco.run(verbose=True)
+                    algo_abbrev = "ACO"
                     
                 else:
                     print("Invalid choice, defaulting to GA")
