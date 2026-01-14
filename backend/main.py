@@ -1,5 +1,5 @@
 import math
-import random
+import os
 from copy import deepcopy
 from dataclasses import dataclass
 from typing import Dict, List, Tuple
@@ -8,7 +8,10 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Circle as PltCircle
 from matplotlib.patches import Rectangle as PltRectangle
 
+
+# ============================================================================
 # DATA STRUCTURES
+# ============================================================================
 
 @dataclass
 class Cargo:
@@ -52,15 +55,18 @@ class Solution:
         return (weighted_x / total_weight, weighted_y / total_weight)
 
 
-# CARGO PLACEMENT
+# ============================================================================
+# CARGO PLACEMENT (Bottom-left heuristic)
+# ============================================================================
 
-# Configuration
-GRID_STEP = 0.2  # Position grid resolution (units)
-
+GRID_STEP = 0.5  # Position grid resolution (units)
 
 def place_cargo(
     order: List[int], cargo_items: List[Cargo], container: Container
 ) -> Solution:
+    """
+    Place cargo items in specified order using bottom-left heuristic.
+    """
     # Make copies so we don't modify originals
     cargo_copy = [deepcopy(c) for c in cargo_items]
     placed_cargo = []
@@ -101,8 +107,8 @@ def place_cargo(
         order=order,
         cargo_items=cargo_copy,
         complete=complete,
-        fitness=0.0,  # Will be calculated by fitness function
-        violations={},  # Will be filled by fitness function
+        fitness=0.0,
+        violations={},
         container=container,
     )
 
@@ -112,6 +118,7 @@ def place_cargo(
 def is_valid_position(
     x: float, y: float, radius: float, placed_cargo: List[Cargo], container: Container
 ) -> bool:
+    """Check if a position is valid (within bounds and no overlaps)"""
     # Check 1: Within container bounds
     if x - radius < 0 or x + radius > container.width:
         return False
@@ -130,7 +137,9 @@ def is_valid_position(
     return True
 
 
+# ============================================================================
 # FITNESS EVALUATION
+# ============================================================================
 
 # Penalty weights
 PENALTY_UNPLACED = 1000.0
@@ -139,10 +148,18 @@ PENALTY_COM_DISTANCE = 100.0
 
 
 def calculate_fitness(solution: Solution) -> float:
+    """
+    Calculate fitness for a solution (lower is better).
+    
+    Penalties:
+    - Unplaced items: 1000 per item
+    - Excess weight: 10 per kg over limit
+    - COM outside safe zone: 100 per unit distance
+    """
     total_penalty = 0.0
     violations = {}
 
-    # Unplaced cargo items 
+    # Unplaced cargo items
     unplaced_count = sum(1 for c in solution.cargo_items if not c.placed)
     if unplaced_count > 0:
         penalty = unplaced_count * PENALTY_UNPLACED
@@ -164,21 +181,24 @@ def calculate_fitness(solution: Solution) -> float:
         violations["excess_weight_kg"] = excess_weight
         violations["weight_penalty"] = penalty
 
-    # centre of mass outside circular safe zone
+    # Centre of mass outside rectangular safe zone (60%)
     com_x, com_y = solution.get_center_of_mass()
-    center_x = solution.container.width / 2
-    center_y = solution.container.depth / 2
+    safe_x_min = solution.container.width * 0.2
+    safe_x_max = solution.container.width * 0.8
+    safe_y_min = solution.container.depth * 0.2
+    safe_y_max = solution.container.depth * 0.8
 
-    # safe zone radius = 60% of container
-    safe_radius = 0.6 * min(solution.container.width, solution.container.depth) / 2
-    com_distance_from_center = math.sqrt(
-        (com_x - center_x)**2 + (com_y - center_y)**2
-    )
-
-    # distance from centre
+    # Only penalize if OUTSIDE safe zone
     com_violation = 0.0
-    if com_distance_from_center > safe_radius:
-        com_violation = com_distance_from_center - safe_radius
+    if com_x < safe_x_min:
+        com_violation += safe_x_min - com_x
+    elif com_x > safe_x_max:
+        com_violation += com_x - safe_x_max
+
+    if com_y < safe_y_min:
+        com_violation += safe_y_min - com_y
+    elif com_y > safe_y_max:
+        com_violation += com_y - safe_y_max
 
     if com_violation > 0:
         penalty = com_violation * PENALTY_COM_DISTANCE
@@ -186,194 +206,19 @@ def calculate_fitness(solution: Solution) -> float:
         violations["com_distance_outside"] = com_violation
         violations["com_penalty"] = penalty
         violations["com_position"] = (com_x, com_y)
-        violations["safe_radius"] = safe_radius
 
-    # store results in object
+    if com_violation < 1e-6:
+        com_violation = 0.0
+
+    # Store results in object
     solution.fitness = total_penalty
     solution.violations = violations
     return total_penalty
 
 
-# GENETIC ALGORITHM
-
-class GeneticAlgorithm:
-    def __init__(
-        self,
-        cargo_items: List[Cargo],
-        container: Container,
-        population_size: int = 200,
-        generations: int = 500,
-        mutation_rate: float = 0.15,
-        crossover_rate: float = 0.8,
-        tournament_size: int = 3,
-        elite_size: int = 5,
-        stagnation_limit: int = 100
-    ):
-        self.cargo_items = cargo_items
-        self.container = container
-        self.num_items = len(cargo_items)
-        self.population_size = population_size
-        self.generations = generations
-        self.mutation_rate = mutation_rate
-        self.crossover_rate = crossover_rate
-        self.tournament_size = tournament_size
-        self.elite_size = elite_size
-        self.stagnation_limit = stagnation_limit
-        self.population = []
-        self.best_solution = None
-        self.best_fitness = float("inf")
-        self.best_generation = 0
-        self.fitness_history = []
-
-    def _evaluate(self, genome: List[int]) -> tuple:
-        """Evaluate a genome and return (genome, solution, fitness)."""
-        solution = place_cargo(genome, self.cargo_items, self.container)
-        calculate_fitness(solution)
-        return (genome, solution, solution.fitness)
-
-    def _update_best(self, solution, fitness, generation: int):
-        """Update best solution if fitness improved."""
-        if fitness < self.best_fitness:
-            self.best_fitness = fitness
-            self.best_solution = solution
-            self.best_generation = generation
-            return True
-        return False
-
-    def initialise_population(self):
-        for _ in range(self.population_size):
-            genome = list(range(self.num_items))
-            random.shuffle(genome)
-            solution = place_cargo(genome, self.cargo_items, self.container)
-            calculate_fitness(solution)
-            self.population.append((genome, solution, solution.fitness))
-
-            if solution.fitness < self.best_fitness:
-                self.best_fitness = solution.fitness
-                self.best_solution = solution
-                self.best_generation = 0
-
-    def tournament_selection(self) -> List[int]:
-        tournament = random.sample(self.population, self.tournament_size)
-        return min(tournament, key=lambda ind: ind[2])[0].copy()
-
-    def order_crossover(self, parent1: List[int], parent2: List[int]) -> List[int]:
-        size = len(parent1)
-        p1, p2 = sorted(random.sample(range(size), 2))
-
-        child = [-1] * size
-        child[p1 : p2 + 1] = parent1[p1 : p2 + 1]
-
-        segment = set(child[p1 : p2 + 1])
-        remaining = iter(x for x in parent2 if x not in segment)
-        return [next(remaining) if x == -1 else x for x in child]
-
-    def swap_mutation(self, genome: List[int]) -> List[int]:
-        if random.random() >= self.mutation_rate:
-            return genome
-        mutated = genome.copy()
-        p1, p2 = random.sample(range(len(mutated)), 2)
-        mutated[p1], mutated[p2] = mutated[p2], mutated[p1]
-        return mutated
-
-    def evolve_generation(self) -> List:
-        # Keep elites
-        sorted_pop = sorted(self.population, key=lambda ind: ind[2])
-        new_population = sorted_pop[: self.elite_size]
-
-        # Generate offspring
-        while len(new_population) < self.population_size:
-            parent1, parent2 = self.tournament_selection(), self.tournament_selection()
-            child = (
-                self.order_crossover(parent1, parent2)
-                if random.random() < self.crossover_rate
-                else parent1.copy()
-            )
-            child = self.swap_mutation(child)
-            new_population.append(self._evaluate(child))
-
-        return new_population
-
-    def run(self, verbose: bool = False):
-        if verbose:
-            print(f"\n{'=' * 70}\nGENETIC ALGORITHM\n{'=' * 70}")
-            print(
-                f"\nPopulation: {self.population_size}, Generations: {self.generations}"
-            )
-            print(f"Mutation: {self.mutation_rate}, Crossover: {self.crossover_rate}")
-
-        self.initialise_population()
-        self.fitness_history.append(self.best_fitness)
-
-        if verbose:
-            print(f"\nInitial best fitness: {self.best_fitness:.2f}\n")
-
-        stagnant_count = 0
-        original_mutation_rate = self.mutation_rate 
-
-        for gen in range(1, self.generations + 1):
-            self.population = self.evolve_generation()
-
-            improved = False
-
-            for genome, solution, fitness in self.population:
-                if fitness < self.best_fitness:
-                    self.best_fitness = fitness
-                    self.best_solution = solution
-                    self.best_generation = gen
-                    improved = True
-                    stagnant_count = 0
-                    self.mutation_rate = original_mutation_rate
-                    if verbose:
-                        print(f"Generation {gen}: New best = {fitness:.2f}")
-            
-            if not improved:
-                stagnant_count += 1
-                if stagnant_count >= self.stagnation_limit:
-                    if verbose:
-                        print(f"\n No improvement for {self.stagnation_limit} generations")
-                        print(f"Stopping early at generation {gen}")
-                    break
-
-            if stagnant_count > 30:
-                # Temporarily increase mutation
-                original_mut = self.mutation_rate
-                self.mutation_rate = min(0.5, self.mutation_rate * 1.5)
-                if verbose and stagnant_count == 21:
-                    print(f"  Increasing mutation to {self.mutation_rate:.2f}")
-    
-            self.fitness_history.append(self.best_fitness)
-
-            if self.best_fitness == 0.0:
-                if verbose:
-                    print(
-                        f"\n{'=' * 70}\n✓ PERFECT SOLUTION FOUND!\nGeneration: {gen}/{self.generations}\n{'=' * 70}"
-                    )
-                break
-
-            if verbose and gen % 100 == 0:
-                avg = sum(ind[2] for ind in self.population) / len(self.population)
-                print(f"Generation {gen}: Best={self.best_fitness:.2f}, Avg={avg:.2f}")
-
-        if verbose:
-            print(f"\n{'=' * 70}\nEVOLUTION COMPLETE\n{'=' * 70}")
-            print(
-                f"Best fitness: {self.best_fitness:.2f}\nFound in generation: {self.best_generation}"
-            )
-
-        return self.best_solution
-
-    def get_statistics(self) -> dict:
-        return {
-            "best_fitness": self.best_fitness,
-            "best_generation": self.best_generation,
-            "generations_run": len(self.fitness_history) - 1,
-            "fitness_history": self.fitness_history,
-            "population_size": self.population_size,
-        }
-
-
+# ============================================================================
 # VISUALISATION
+# ============================================================================
 
 class CargoVisualiser:
     """Week 7 compatible visualisation"""
@@ -399,16 +244,17 @@ class CargoVisualiser:
         )
         ax.add_patch(container_rect)
 
-        # Draw safe zone (central 60%)
+        # Draw safe zone as yellow dotted rectangle (central 60%)
         if show_safe_zone:
-            center_x = self.container.width / 2
-            center_y = self.container.depth / 2
+            safe_x = self.container.width * 0.2
+            safe_y = self.container.depth * 0.2
+            safe_w = self.container.width * 0.6
+            safe_h = self.container.depth * 0.6
 
-            safe_radius = 0.6 * min(self.container.width, self.container.depth) / 2
-
-            safe_circle = PltCircle(
-                (center_x, center_y),
-                safe_radius,
+            safe_zone = PltRectangle(
+                (safe_x, safe_y),
+                safe_w,
+                safe_h,
                 fill=False,
                 edgecolor="#F4BA02",
                 linewidth=2,
@@ -416,7 +262,7 @@ class CargoVisualiser:
                 alpha=0.7,
                 label="Safe zone (60%)",
             )
-            ax.add_patch(safe_circle)
+            ax.add_patch(safe_zone)
 
         # Draw cargo items
         for cargo in self.solution.cargo_items:
@@ -442,7 +288,7 @@ class CargoVisualiser:
                 )
                 ax.add_patch(cargo_patch)
 
-                # centre point
+                # Centre point
                 ax.plot(cargo.x, cargo.y, "o", color=edge_color, markersize=6)
 
                 # Label with ID
@@ -481,7 +327,7 @@ class CargoVisualiser:
                 color="#FF0000",
                 markersize=15,
                 markeredgewidth=3,
-                label="center of Mass",
+                label="Center of Mass",
             )
 
             # Draw reference lines
@@ -554,7 +400,9 @@ class CargoVisualiser:
         return fig, ax
 
 
-# INSATNCE LOADER
+# ============================================================================
+# INSTANCE LOADER
+# ============================================================================
 
 def get_instance(instance_name: str) -> Tuple[List[Cargo], Container]:
     """Get instance from container_instances.py"""
@@ -590,12 +438,15 @@ def list_instances() -> List[str]:
     return [inst.name for inst in instances]
 
 
+# ============================================================================
 # MENU SYSTEM
+# ============================================================================
 
 def main_menu():
+    """Interactive menu for running algorithms"""
     print("\n" + "=" * 70)
-    print("CARGO CONTAINER LOADING - GENETIC ALGORITHM")
-    print("KV6018 Evolutionary Computing")
+    print("CARGO CONTAINER LOADING - EVOLUTIONARY COMPUTING")
+    print("KV6018 Assessment")
     print("=" * 70)
 
     while True:
@@ -627,21 +478,51 @@ def main_menu():
                 instance_name = instances[choice_num - 1]
                 cargo_items, container = get_instance(instance_name)
 
-                print(f"\n Loaded: {instance_name}")
+                print(f"\n✓ Loaded: {instance_name}")
                 print(
                     f"  Container: {container.width}×{container.depth}m, max {container.max_weight}kg"
                 )
                 print(f"  Cargo: {len(cargo_items)} items")
 
-                # Run GA with default parameters
-                print("\n" + "=" * 70)
-                print("RUNNING GENETIC ALGORITHM")
-                print("=" * 70)
-                print("Parameters: Population=100, Generations=500, Mutation=0.15")
+                # Select algorithm
+                print("\nSelect Algorithm:")
+                print("  1. Genetic Algorithm (GA)")
+                print("  2. Random Search")
+                
+                algo_choice = input("\nChoice (1-2): ").strip()
+                
+                if algo_choice == "1":
+                    # Run GA
+                    from genetic_cargo import GeneticAlgorithm
+                    
+                    print("\n" + "=" * 70)
+                    print("RUNNING GENETIC ALGORITHM")
+                    print("=" * 70)
 
-                ga = GeneticAlgorithm(cargo_items, container)
-                solution = ga.run(verbose=True)
+                    ga = GeneticAlgorithm(cargo_items, container)
+                    solution = ga.run(verbose=True)
+                    algo_abbrev = "GA"
+                    
+                elif algo_choice == "2":
+                    # Run Random Search
+                    from random_cargo import RandomSearch
+                    
+                    print("\n" + "=" * 70)
+                    print("RUNNING RANDOM SEARCH")
+                    print("=" * 70)
+                    
+                    rs = RandomSearch(cargo_items, container)
+                    solution = rs.run(max_iterations=2000, verbose=True)
+                    algo_abbrev = "RS"
+                    
+                else:
+                    print("Invalid choice, defaulting to GA")
+                    from genetic_cargo import GeneticAlgorithm
+                    ga = GeneticAlgorithm(cargo_items, container)
+                    solution = ga.run(verbose=True)
+                    algo_abbrev = "GA"
 
+                # Display results
                 print("\n" + "=" * 70)
                 print("RESULTS")
                 print("=" * 70)
@@ -655,12 +536,11 @@ def main_menu():
                 if show_vis == "y":
                     vis = CargoVisualiser(solution)
                     vis.draw(title=instance_name)
-                    
+
                     # Ensure output directory exists
-                    import os
                     os.makedirs('./output', exist_ok=True)
-                    
-                    filename = f'./output/{instance_name}_fitness_{solution.fitness:.2f}.png'
+
+                    filename = f'./output/{instance_name}_{algo_abbrev}_fitness_{solution.fitness:.2f}.png'
                     plt.savefig(filename, dpi=300, bbox_inches='tight', facecolor='#01364C')
                     plt.close()
 
@@ -677,11 +557,12 @@ def main_menu():
         except Exception as e:
             print(f"Error: {e}")
             import traceback
-
             traceback.print_exc()
 
 
+# ============================================================================
 # MAIN ENTRY POINT
+# ============================================================================
 
 if __name__ == "__main__":
     try:
@@ -691,5 +572,4 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\nError: {e}")
         import traceback
-
         traceback.print_exc()
