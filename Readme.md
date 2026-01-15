@@ -18,6 +18,7 @@ backend/
 
 ```
 pip install matplotlib
+pip install numpy
 ```
 
 ### 3. Run
@@ -48,20 +49,17 @@ CHALLENGING:
 Select instance (1-7) or 'q' to quit: 1
 ```
 
-### GA Runs Automatically
+### Select Algorithm
 
 ```
-✓ Loaded: basic_01_three_identical
+ Loaded: basic_01_three_identical
   Container: 10.0×10.0m, max 100.0kg
   Cargo: 3 items
 
-RUNNING GENETIC ALGORITHM
-Parameters: Population=100, Generations=500, Mutation=0.15
-
-Generation 1: New best = 100.00
-Generation 15: New best = 0.00
-
-✓ PERFECT SOLUTION FOUND!
+Select Algorithm:
+  1. Genetic Algorithm (GA)
+  2. Random Search
+  3. Greedy Seach
 ```
 
 ---
@@ -70,12 +68,12 @@ Generation 15: New best = 0.00
 
 The GA uses these fixed parameters:
 
-- **Population:** ?
-- **Generations:** ?
-- **Mutation Rate:** ?
-- **Crossover Rate:** ?
-- **Tournament Size:** ?
-- **Elite Size:** ?
+- **Population:**
+- **Generations:**
+- **Mutation Rate:**
+- **Crossover Rate:**
+- **Tournament Size:**
+- **Elite Size:**
 
 ---
 

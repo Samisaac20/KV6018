@@ -22,7 +22,7 @@ class GeneticAlgorithm:
         cargo_items: List[Cargo],
         container: Container,
         population_size: int = 300,
-        generations: int = 1500,
+        generations: int = 500,
         mutation_rate: float = 0.2,
         crossover_rate: float = 0.9,
         tournament_size: int = 4,
