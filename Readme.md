@@ -99,6 +99,8 @@ Week 7 compatible styling:
 - **Blue** - Sub-optimal solutions
 - **Red** - Center of mass marker
 
+**Results for all instances are kept in results.xlsx in /output**
+
 ---
 
 ## Troubleshooting
