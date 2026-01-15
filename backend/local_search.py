@@ -1,5 +1,4 @@
 import random
-from copy import deepcopy
 from main import place_cargo, calculate_fitness, Solution
 
 class LocalSearch:

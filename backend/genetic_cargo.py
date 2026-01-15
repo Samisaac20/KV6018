@@ -5,7 +5,6 @@ Order-based GA for cargo placement optimization with Local Search
 
 import random
 from typing import List
-import math
 
 from main import Cargo, Container, Solution, place_cargo, calculate_fitness
 from local_search import LocalSearch
@@ -209,12 +208,11 @@ class GeneticAlgorithm:
     # Statistics
     # ============================================================================
     def get_statistics(self) -> dict:
-        """Return GA run statistics including search space."""
+        """Return GA run statistics."""
         return {
             "best_fitness": self.best_fitness,
             "best_generation": self.best_generation,
             "generations_run": len(self.fitness_history) - 1,
             "fitness_history": self.fitness_history,
             "population_size": self.population_size,
-            "search_space_size": self.search_space_size(),
         }

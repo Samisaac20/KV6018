@@ -1,6 +1,5 @@
 import math
 import os
-from copy import deepcopy
 from dataclasses import dataclass
 from typing import Dict, List, Tuple
 
@@ -107,14 +106,13 @@ def place_cargo(order, cargo_items, container, grid_step=GRID_STEP):
         cyl_id = order[idx]
         cyl = cargo_copy[cyl_id]
         radius = cyl.diameter / 2.0
-        position_found = False
 
         best_candidate = None
         best_score = (float("inf"), float("inf"), float("inf"))
 
         # Scan from rear (y=0) to front
         y = 0.0
-        while y + cyl.diameter <= container.depth + 1e-9 and not position_found:
+        while y + cyl.diameter <= container.depth + 1e-9:
             # Bias x scan towards container midline to help COM
             x_positions = []
             center_start = max(0.0, min(container.width - cyl.diameter, container.width / 2 - radius))
@@ -284,9 +282,6 @@ def calculate_fitness(solution: Solution) -> float:
         violations["com_distance_outside"] = com_violation
         violations["com_penalty"] = penalty
         violations["com_position"] = (com_x, com_y)
-
-    if com_violation < 1e-6:
-        com_violation = 0.0
 
     # Store results in object
     solution.fitness = total_penalty
